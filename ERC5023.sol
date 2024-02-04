@@ -71,6 +71,7 @@ function addAsset(address owner,uint256 _noOfShares)external {
         noOfShares[tokenIdToBeShared]=noOfShares[tokenIdToBeShared]-_noOfShares;
         }
 
+//Shares the mainAsset token with shared owners with number of shares he/she wants to buy
  function share(address to, uint256 tokenIdToBeShared) public returns(uint256 newTokenId) {
       require(to != address(0), "ERC721: mint to the zero address");
       require(_exists(tokenIdToBeShared), "ShareableERC721: token to be shared must exist");

@@ -11,5 +11,4 @@ interface IERC5023 is IERC165 {
 
   /// @dev Shares, remints an existing token, gives a newly minted token a fresh token id, keeps original token at function callers possession and transfers newly minted token to receiver which should be another address than function caller. 
   function share(address to, uint256 tokenIdToBeShared) external returns(uint256 newTokenId);
-
 } 

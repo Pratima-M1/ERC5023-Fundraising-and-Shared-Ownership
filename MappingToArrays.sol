@@ -2,10 +2,10 @@
 pragma solidity ^0.8.0;
 
 abstract contract MappingToArrays {
-    // Mapping from uint256 to array of addresses
+    // Mapping from uint256 to array of uint256 Ids
     mapping(uint256 => uint256[]) private uint256ToArrayMapping;
 
-    // Function to add an address to the array associated with a uint256 key
+    // Function to add an Id to the array associated with a uint256 key
     function addToMapping(uint256 key, uint256 value) public {
         uint256ToArrayMapping[key].push(value);
     }
