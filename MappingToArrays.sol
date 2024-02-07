@@ -1,7 +1,7 @@
 //// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-abstract contract MappingToArrays {
+contract MappingToArrays {
     // Mapping from uint256 to array of uint256 Ids
     mapping(uint256 => uint256[]) private uint256ToArrayMapping;
 

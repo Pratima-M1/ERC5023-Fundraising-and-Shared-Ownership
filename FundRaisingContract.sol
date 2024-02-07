@@ -11,19 +11,12 @@ contract FundRaisingContract is ERC721URIStorage, Ownable, IERC5023 {
     
     uint256 internal _currentIndex;
     MappingToArrays mappingToArray;
-    // Mapping to store the voting status for each token
-    mapping(uint256 => mapping(uint256 => bool)) private _votingStatus;
 
-    // Mapping to track fundraising details for each asset
-    mapping(uint256 => FundRaisingDetails) private _FundRaisingDetails;
-
-    mapping(uint256 => address) assetOwners;
-    mapping(uint256 => bool) _votingOpen;
-
-    // Struct to store fundraising details for each asset
+      // Struct to store fundraising details for each asset
     struct FundRaisingDetails {
         uint256 totalShares;
         uint256 sharesSold;
+        uint256 assetPrice;
         bool assetLocked;
     }
 
@@ -33,16 +26,26 @@ contract FundRaisingContract is ERC721URIStorage, Ownable, IERC5023 {
         uint256 sharedId;
         uint256 shareHolded;
     }
+    // Mapping to store the voting status for each token
+    mapping(uint256 => mapping(uint256 => bool)) private _votingStatus;
+
+    // Mapping to track fundraising details for each asset
+    mapping(uint256 => FundRaisingDetails) private _FundRaisingDetails;
+
+    mapping(uint256 => address) assetOwners;
+    mapping(uint256 => bool) _votingOpen;
 
     mapping(uint256 => mapping(uint256 => SharedOwnersDetails)) sharedOwners;
+    mapping(uint256=>address)_owners;
+     mapping(uint256 => bool) _saleIsOpen;
+     mapping(uint256=>bool)_sharedTokensLocked;
+     mapping(uint256=>uint256)_balances;
 
     constructor(
         string memory _name,
         string memory _symbol,
-        address _mappingTOArray,
-        string memory _baseURI
+        address _mappingTOArray
     ) ERC721(_name, _symbol) Ownable(msg.sender) {
-        baseURI = _baseURI;
         mappingToArray = MappingToArrays(_mappingTOArray);
         _currentIndex=1;
     }
@@ -70,14 +73,14 @@ contract FundRaisingContract is ERC721URIStorage, Ownable, IERC5023 {
         public
         returns (uint256 newTokenId)
     {
-        require(to != address(0), "ERC721: mint to the zero address");
+        require(to != address(0), "ERC5023: mint to the zero address");
         require(
             _exists(tokenIdToBeShared),
-            "ShareableERC721: token to be shared must exist"
+            "ERC5023: token to be shared must exist"
         );
         require(
             ownerOf(tokenIdToBeShared) == msg.sender,
-            "ShareableERC721: sender must be the owner of the token"
+            "ERC5023: sender must be the owner of the token"
         );
 
         string memory _tokenURI = tokenURI(tokenIdToBeShared);
@@ -90,18 +93,19 @@ contract FundRaisingContract is ERC721URIStorage, Ownable, IERC5023 {
     }
 
     function registerAsset(address Investor) public {
-        require(Investor != address(0), "Invesotr: not a valid address");
+        require(Investor != address(0), "Investor: not a valid address");
         _mint(Investor, _currentIndex);
         _votingOpen[_currentIndex] = false;
         assetOwners[_currentIndex]=Investor;
+        _owners[_currentIndex]=Investor;
         _currentIndex++;
     }
 
-    function registerAssetForFundraising(uint256 tokenId, uint256 totalShares)
+    function registerAssetForFundraising(uint256 tokenId,uint256 assetPrice, uint256 totalShares)
         external
         onlyOwner
     {
-       require(_exists(tokenId), "ShareableERC721: token must exist");
+       require(_exists(tokenId), "ERC5023: token must exist");
         require(
             !_FundRaisingDetails[tokenId].assetLocked,
             "FundRaising: asset is already locked for fundraising"
@@ -109,6 +113,7 @@ contract FundRaisingContract is ERC721URIStorage, Ownable, IERC5023 {
         _FundRaisingDetails[tokenId] = FundRaisingDetails(
             totalShares,
             0,
+            assetPrice,
             true
         );
     }
@@ -117,10 +122,10 @@ contract FundRaisingContract is ERC721URIStorage, Ownable, IERC5023 {
         address to,
         uint256 tokenIdToBeShared,
         uint256 numberOfShares
-    ) external payable {
+    ) external  {
        require(
             _exists(tokenIdToBeShared),
-            "ShareableERC721: token must exist"
+            "ERC5023: token must exist"
         );
         require(
             _FundRaisingDetails[tokenIdToBeShared].assetLocked,
@@ -132,8 +137,7 @@ contract FundRaisingContract is ERC721URIStorage, Ownable, IERC5023 {
                 _FundRaisingDetails[tokenIdToBeShared].totalShares,
             "FundRaising: not enough shares available"
         );
-        //  require(msg.value == numberOfShares * 1 ether, "ShareableERC721: incorrect amount sent");
-        _FundRaisingDetails[tokenIdToBeShared].sharesSold += numberOfShares;
+       _FundRaisingDetails[tokenIdToBeShared].sharesSold += numberOfShares;
         if (
             _FundRaisingDetails[tokenIdToBeShared].sharesSold ==
             _FundRaisingDetails[tokenIdToBeShared].totalShares
@@ -147,7 +151,10 @@ contract FundRaisingContract is ERC721URIStorage, Ownable, IERC5023 {
             numberOfShares
         );
           mappingToArray.addToMapping(tokenIdToBeShared, _currentIndex);//pushes the shared owner address to asset's shared owners array
+       //transfer the share price to the owners address from buyer
         share(to, tokenIdToBeShared);
+        _owners[_currentIndex]=to;
+        _sharedTokensLocked[_currentIndex]=true;
       
     }
 
@@ -164,9 +171,7 @@ contract FundRaisingContract is ERC721URIStorage, Ownable, IERC5023 {
         _votingStatus[tokenId][sharedTokenId] = true;
     }
 
-    mapping(uint256 => bool) _saleIsOpen;
-
-    function makeDecisionForSelling(uint256 tokenId) external onlyOwner {
+       function makeDecisionForSelling(uint256 tokenId) external onlyOwner {
         require(_exists(tokenId), "FundRaising: token must exist");
         require(_votingOpen[tokenId], "FundRaising: Voting is not open");
 
@@ -202,8 +207,36 @@ contract FundRaisingContract is ERC721URIStorage, Ownable, IERC5023 {
           safeTransferFrom(msg.sender,to,tokenId);
 
     }
-    mapping(uint256=>address)_owners;
+   
       function _exists(uint256 tokenId) internal view returns (bool) {
         return _owners[tokenId] != address(0);
     }
+
+    function distributeIncome(uint256 tokenId, uint256 totalIncome) external view  onlyOwner {
+    require(_exists(tokenId), "FundRaising: token must exist");
+    require(!_votingOpen[tokenId], "FundRaising: Voting is not open");
+    require(_saleIsOpen[tokenId], "FundRaising: Sale is not open");
+    // Get the total number of shared owners for the given token
+    uint256 totalSharedOwners = _FundRaisingDetails[tokenId].sharesSold;
+    // Keep track of shared token IDs//mappingToArrays
+    uint256[] memory sharedTokenIds = mappingToArray.getArray(tokenId);
+    // Calculate income per share
+    uint256 incomePerShare = totalIncome / totalSharedOwners;
+    // Distribute income to shared owners
+    for (uint256 i = 0; i < totalSharedOwners; i++) {
+        uint256 sharedTokenId = sharedTokenIds[i];
+        address sharedOwner = sharedOwners[tokenId][sharedTokenId].sharedowner;
+        uint256 sharesHeld = sharedOwners[tokenId][sharedTokenId].shareHolded;
+        // Calculate income for the shared owner based on their shares
+        uint256 ownerIncome = incomePerShare * sharesHeld;
+        //add the income to owner balance//transfer the amount from buyer to seller address
+        //also all dues and reward claims to be taken care of
+    }
+}
+
+function transferToken(uint256 sharedTokenId,address to)public view {
+    require(!_sharedTokensLocked[sharedTokenId],"ERC5023:cannot transfer the token");
+    revert("If any due fees are there");//allow only if all dues are paid and rewards/claims fees of the current owner is claimed
+}
+
 }
